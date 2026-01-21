@@ -6,7 +6,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 public class BorderData extends SavedData {
     public long lastActionTime = 0;
-    public String lastState = "Retracted";
+    public String lastState = "Expanded";
     public boolean isStopped = true;
 
     public static BorderData get(ServerLevel level)

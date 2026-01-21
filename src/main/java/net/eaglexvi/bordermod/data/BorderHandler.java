@@ -5,6 +5,8 @@ import net.eaglexvi.bordermod.BorderMod;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.common.Mod;
 import org.jline.utils.Log;
@@ -49,7 +51,6 @@ public class BorderHandler
     /// Checks/Informs players of upcoming border changes
     private static void CheckMessageStatus(ServerLevel level, long currentTime, BorderData data)
     {
-        long timeElapsed = currentTime - data.lastActionTime;
         long timeLeft = 0;
 
         switch(data.lastState)
@@ -81,6 +82,14 @@ public class BorderHandler
                 {
                     BorderMessages message = new BorderMessages("The border will retract in 1 minute!");
                     message.MessageAllPlayers(level);
+
+                    ServerLevelData levelData = (ServerLevelData) level.getLevelData();
+
+                    levelData.setClearWeatherTime(0);
+                    levelData.setRaining(true);
+                    levelData.setThundering(true);
+                    levelData.setRainTime(20 * 90);
+                    levelData.setThunderTime(20 * 60);
                 }
                 else if (timeLeft == 600)
                 {
@@ -118,7 +127,6 @@ public class BorderHandler
     private static void RetractBorder(ServerLevel level, long currentTime, BorderData data)
     {
         WorldBorder border = level.getWorldBorder();
-
         data.lastState = "Retracted";
         data.lastActionTime = currentTime;
         border.lerpSizeBetween(BorderData.GetExpansionSize(), BorderData.GetRetractionSize(), BorderData.GetRetractionDuration());
@@ -131,6 +139,8 @@ public class BorderHandler
         );
 
         Message.MessageAllPlayers(level);
+        BorderSounds.PlayBorderRetract(level);
+
     }
 
     /// Expands border
@@ -150,8 +160,11 @@ public class BorderHandler
         );
 
         Message.MessageAllPlayers(level);
+        BorderSounds.PlayBorderExpand(level);
     }
 
+
+    ///  Restarts Border
     public static void RestartBorder(ServerLevel level, long currentTime, BorderData data)
     {
         if (data.lastState.equals("Retracted"))

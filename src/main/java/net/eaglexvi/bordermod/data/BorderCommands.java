@@ -221,11 +221,12 @@ public class BorderCommands
 
     private static int ChangeExpandedSize(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
+        /*if (!IsBorderStopped)
         {
             source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
             return 0;
         }
+        */
 
         BorderConfig.EXPANDED_SIZE.set(value);
         BorderConfig.SPEC.save();
@@ -263,11 +264,13 @@ public class BorderCommands
 
     private static int ChangeRetractedSize(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
+        /*if (!IsBorderStopped)
         {
             source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
             return 0;
         }
+
+         */
 
         BorderConfig.RETRACTED_SIZE.set(value);
         BorderConfig.SPEC.save();

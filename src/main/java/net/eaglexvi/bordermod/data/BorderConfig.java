@@ -42,7 +42,7 @@ public class BorderConfig {
                 .defineInRange("radius", 100L, 1L, Long.MAX_VALUE);
         RETRACTION_INTERVAL_IN_SECONDS = BUILDER
                 .comment("How often the border retracts in seconds")
-                .defineInRange("radius", 120L, 1L, Long.MAX_VALUE);
+                .defineInRange("interval", 120L, 1L, Long.MAX_VALUE);
         RETRACTION_DURATION_IN_SECONDS = BUILDER
                 .comment("Time it takes for the border to fully retract")
                 .defineInRange("duration", 10L, 1L, Long.MAX_VALUE);

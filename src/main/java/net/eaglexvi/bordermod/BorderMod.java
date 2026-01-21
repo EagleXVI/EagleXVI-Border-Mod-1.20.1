@@ -1,74 +1,75 @@
 package net.eaglexvi.bordermod;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.world.level.block.Blocks;
+import net.eaglexvi.bordermod.data.BorderCommands;
+import net.eaglexvi.bordermod.data.BorderData;
+import net.eaglexvi.bordermod.data.BorderHandler;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.server.ServerLifecycleHooks;
+import net.eaglexvi.bordermod.data.BorderConfig;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/mods.toml file
 @Mod(BorderMod.MOD_ID)
-public class BorderMod
-{
-    // Define mod id in a common place for everything to reference
-    public static final String MOD_ID = "eaglexvi_border";
-    // Directly reference a slf4j logger
-    private static final Logger LOGGER = LogUtils.getLogger();
+@Mod.EventBusSubscriber(modid = BorderMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class BorderMod {
 
+    public static final String MOD_ID = "eaglexvi_border";
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public BorderMod(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
 
-        // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
+        // Register the config of the mod
+        context.registerConfig(ModConfig.Type.COMMON, BorderConfig.SPEC);
 
-        // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-
-        // Register the item to a creative tab
-        modEventBus.addListener(this::addCreative);
     }
 
-    private void commonSetup(final FMLCommonSetupEvent event)
-    {
-        // Some common setup code
-        LOGGER.info("HELLO FROM COMMON SETUP");
-        LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
-    }
-
-    // Add the example block item to the building blocks tab
-    private void addCreative(BuildCreativeModeTabContentsEvent event)
-    {
-
-    }
-
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
+    /// Checks border state each tick
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event)
+    public static void onServerTick(TickEvent.ServerTickEvent event)
     {
-        // Do something when the server starts
-        LOGGER.info("HELLO from server starting");
+        if (event.phase != TickEvent.Phase.END)
+            return;
+
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null)
+            return;
+
+        BorderHandler.Tick(server.overworld());
     }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-    /*@Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents
+    /// Registers Custom Commands
+    @SubscribeEvent
+    public static void onRegisterCommands(RegisterCommandsEvent event)
     {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event)
-        {
-            // Some client setup code
-            LOGGER.info("HELLO FROM CLIENT SETUP");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
-        }
+        BorderCommands.Register(event.getDispatcher());
+
+        LOGGER.info("Sucessfully registered custom commands!");
     }
-     */
+
+    /// Method for instantiating methods
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        MinecraftServer server = event.getServer();
+        if (server == null)
+            return;
+
+        BorderCommands.Instantiate(server.overworld());
+
+        BorderData data = BorderData.get(server.overworld().getLevel());
+        data.lastState = BorderConfig.BORDER_STATE.get();
+
+        LOGGER.info("Successfully Intantiated border stopping/pausing commands");
+    }
 }

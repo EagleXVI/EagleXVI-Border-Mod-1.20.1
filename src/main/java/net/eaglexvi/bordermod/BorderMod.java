@@ -18,6 +18,8 @@ import net.minecraftforge.server.ServerLifecycleHooks;
 import net.eaglexvi.bordermod.data.BorderConfig;
 import org.slf4j.Logger;
 
+// made by eaglexvi
+
 @Mod(BorderMod.MOD_ID)
 @Mod.EventBusSubscriber(modid = BorderMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class BorderMod {

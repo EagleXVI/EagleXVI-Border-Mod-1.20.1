@@ -5,6 +5,7 @@ import net.eaglexvi.bordermod.data.BorderCommands;
 import net.eaglexvi.bordermod.data.BorderData;
 import net.eaglexvi.bordermod.data.BorderHandler;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -60,18 +61,17 @@ public class BorderMod {
         LOGGER.info("Sucessfully registered custom commands!");
     }
 
-    /// Method for instantiating methods
+
+    /// On server start
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         MinecraftServer server = event.getServer();
         if (server == null)
             return;
 
-        BorderCommands.Instantiate(server.overworld());
+        ServerLevel level = server.overworld().getLevel();
+        BorderData data = BorderData.get(level);
 
-        BorderData data = BorderData.get(server.overworld().getLevel());
-        data.lastState = BorderConfig.BORDER_STATE.get();
-
-        LOGGER.info("Successfully Intantiated border stopping/pausing commands");
+        BorderHandler.ReSyncBorder(level, data, System.currentTimeMillis());
     }
 }

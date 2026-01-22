@@ -27,25 +27,25 @@ public class BorderConfig {
         BUILDER.push("Expansion Settings");
         EXPANDED_SIZE = BUILDER
                 .comment("The radius of the border in blocks when fully expanded")
-                .defineInRange("radius", 200L, 1L, Long.MAX_VALUE);
+                .defineInRange("radius", 10000L, 1L, Long.MAX_VALUE);
         EXPANSION_INTERVAL_IN_SECONDS = BUILDER
                 .comment("How often the border expands in seconds")
-                .defineInRange("interval", 120L, 1L, Long.MAX_VALUE);
+                .defineInRange("interval", 172800L, 1L, Long.MAX_VALUE);
         EXPANSION_DURATION_IN_SECONDS = BUILDER
                 .comment("Time it takes for the border to fully expand")
-                .defineInRange("duration", 15L, 1L, Long.MAX_VALUE);
+                .defineInRange("duration", 360L, 1L, Long.MAX_VALUE);
         BUILDER.pop();
 
         BUILDER.push("Retraction Settings");
         RETRACTED_SIZE = BUILDER
                 .comment("The radius of the border in blocks when fully retracted")
-                .defineInRange("radius", 100L, 1L, Long.MAX_VALUE);
+                .defineInRange("radius", 500L, 1L, Long.MAX_VALUE);
         RETRACTION_INTERVAL_IN_SECONDS = BUILDER
                 .comment("How often the border retracts in seconds")
-                .defineInRange("interval", 120L, 1L, Long.MAX_VALUE);
+                .defineInRange("interval", 86400L, 1L, Long.MAX_VALUE);
         RETRACTION_DURATION_IN_SECONDS = BUILDER
                 .comment("Time it takes for the border to fully retract")
-                .defineInRange("duration", 10L, 1L, Long.MAX_VALUE);
+                .defineInRange("duration", 360L, 1L, Long.MAX_VALUE);
         BUILDER.pop();
 
         BUILDER.push("Other Settings");
@@ -54,7 +54,7 @@ public class BorderConfig {
                 .define("value", true);
         BORDER_STATE = BUILDER
                 .comment("Current state of the border")
-                .define("state", "Retracted");
+                .define("state", "Expanded");
         BUILDER.pop();
 
         SPEC = BUILDER.build();

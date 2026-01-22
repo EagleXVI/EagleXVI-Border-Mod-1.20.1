@@ -1,24 +1,23 @@
 package net.eaglexvi.bordermod.data;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
+
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+
 public class BorderCommands
 {
-    public static boolean IsBorderStopped;
-
     private BorderCommands() {}
-
-    public static void Instantiate(ServerLevel level)
-    {
-        BorderData data = BorderData.get(level);
-        IsBorderStopped = data.isStopped;
-    }
 
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
@@ -100,180 +99,183 @@ public class BorderCommands
                         )
                 )
 
-                // ./customBorder border stop
-                .then(Commands.literal("border")
-                        .then(Commands.literal("stop")
-                            .executes(context -> {
-                                return StopBorder(context.getSource());
-                             })
+                // ./customBorder stop
+                .then(Commands.literal("stop")
+                    .executes(context -> {
+                        return StopBorder(context.getSource());
+                     })
+                )
+
+
+                // ./customBorder start
+                .then(Commands.literal("start")
+                        .executes(context -> {
+                            return StartBorder(context.getSource());
+                        })
+                )
+
+
+                // ./customBorder setNewActionDate
+                .then(Commands.literal("setNewActionDate")
+                        .then(Commands.argument("year", IntegerArgumentType.integer(1))
+                                .then(Commands.argument("month", IntegerArgumentType.integer(1))
+                                        .then(Commands.argument("day", IntegerArgumentType.integer(1))
+                                                .then(Commands.argument("hour", IntegerArgumentType.integer(0))
+                                                        .then(Commands.argument("minute", IntegerArgumentType.integer(0))
+                                                                .then(Commands.argument("second", IntegerArgumentType.integer(0))
+                                                                        .executes(context -> {
+                                                                            int year = IntegerArgumentType.getInteger(context,"year");
+                                                                            int month = IntegerArgumentType.getInteger(context,"month");
+                                                                            int day = IntegerArgumentType.getInteger(context,"day");
+                                                                            int hour = IntegerArgumentType.getInteger(context,"hour");
+                                                                            int minute = IntegerArgumentType.getInteger(context,"minute");
+                                                                            int second = IntegerArgumentType.getInteger(context,"second");
+
+                                                                            return SetNewActionDate(context.getSource(), year, month, day, hour, minute, second);
+                                                                        })
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                )
+
                         )
                 )
 
-                // ./customBorder border stop
-                .then(Commands.literal("border")
-                        .then(Commands.literal("start")
-                                .executes(context -> {
-                                    return StartBorder(context.getSource());
-                                })
-                        )
+                .then(Commands.literal("currentDate")
+                        .executes(context -> {
+                            return GetCurrentDate(context.getSource());
+                        })
+                )
+
+                .then(Commands.literal("skipState")
+                        .executes(context -> {
+                            return SkipState(context.getSource());
+                        })
                 )
         );
 
     }
 
-    private static int StopBorder(CommandSourceStack source)
+    private static int SkipState(CommandSourceStack source)
     {
-        IsBorderStopped = true;
+        ServerLevel level = source.getLevel();
+        BorderData data = BorderData.get(source.getLevel());
+
+        if (BorderData.GetCurrentState().equals("Expanded"))
+            BorderHandler.RetractBorder(level, System.currentTimeMillis(), data);
+        else if (BorderData.GetCurrentState().equals("Retracted"))
+            BorderHandler.ExpandBorder(level, System.currentTimeMillis(), data);
+
+        return 1;
+    }
+
+    private static int GetCurrentDate(CommandSourceStack source)
+    {
+        long currentTime = System.currentTimeMillis();
+
+        Instant instant = Instant.ofEpochMilli(currentTime);
+        LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        source.sendSuccess(() -> Component.literal("Current time is: " + dateTime.format(formatter)), true);
+
+        return 1;
+    }
+
+    private static int SetNewActionDate(CommandSourceStack source, int year, int month, int day, int hour, int minute, int second)
+    {
+        LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minute, second);
+        long systemTime = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
 
         ServerLevel level = source.getLevel();
-        WorldBorder border = level.getWorldBorder();
         BorderData data = BorderData.get(level);
+
+        data.nextActionTime = systemTime;
+
+        return 1;
+    }
+
+    private static int StopBorder(CommandSourceStack source)
+    {
+        ServerLevel level = source.getLevel();
+        WorldBorder border = level.getWorldBorder();
 
         // Stop border's retraction and expansion
         border.setSize(border.getSize());
 
         // Fix BorderConfig and Data
-        BorderConfig.BORDER_STOPPED.set(true);
-        BorderConfig.SPEC.save();
-
-        data.isStopped = true;
+        BorderData.SetIsBorderStopped(true);
 
         return 1;
     }
 
     private static int StartBorder(CommandSourceStack source)
     {
-        IsBorderStopped = false;
-
         ServerLevel level = source.getLevel();
         BorderData data = BorderData.get(level);
 
         // Fix BorderConfig and Data
-        BorderConfig.BORDER_STOPPED.set(false);
-        BorderConfig.SPEC.save();
+        BorderData.SetIsBorderStopped(false);
 
-        data.isStopped = false;
-
-        // Restart the border from state (since stop could've caused it to stop in the middle of expansion/retraction)
-        BorderHandler.RestartBorder(level, System.currentTimeMillis(), data);
+        // Re-Sync
+        BorderHandler.ReSyncBorder(level, data, System.currentTimeMillis());
 
         return 1;
     }
 
     private static int ChangeState(CommandSourceStack source, boolean val)
     {
-        if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-        BorderData data = BorderData.get(source.getLevel());
-
         // Border is retracted
         if (!val)
-        {
-            data.lastState = "Retracted";
-
-            BorderConfig.BORDER_STATE.set("Retracted");
-            BorderConfig.SPEC.save();
-        }
+            BorderData.SetCurrentState("Retracted");
 
         // Border is expanded
         else
-        {
-            data.lastState = "Expanded";
-
-            BorderConfig.BORDER_STATE.set("Expanded");
-            BorderConfig.SPEC.save();
-        }
+            BorderData.SetCurrentState("Expanded");
 
         return 1;
     }
 
     private static int ChangeExpansionInterval(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-        BorderConfig.EXPANSION_INTERVAL_IN_SECONDS.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetExpansionInterval(value);
 
         return 1;
     }
 
     private static int ChangeExpansionDuration(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-        BorderConfig.EXPANSION_DURATION_IN_SECONDS.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetExpansionDuration(value);
 
         return 1;
     }
 
     private static int ChangeExpandedSize(CommandSourceStack source, long value)
     {
-        /*if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-        */
-
-        BorderConfig.EXPANDED_SIZE.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetExpansionSize(value);
 
         return 1;
     }
 
     private static int ChangeRetractionInterval(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-        BorderConfig.RETRACTION_INTERVAL_IN_SECONDS.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetRetractionInterval(value);
 
         return 1;
     }
 
     private static int ChangeRetractionDuration(CommandSourceStack source, long value)
     {
-        if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-        BorderConfig.RETRACTION_DURATION_IN_SECONDS.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetRetractionDuration(value);
 
         return 1;
     }
 
     private static int ChangeRetractedSize(CommandSourceStack source, long value)
     {
-        /*if (!IsBorderStopped)
-        {
-            source.sendSuccess(() -> Component.literal("Border must be stopped!"), true);
-            return 0;
-        }
-
-         */
-
-        BorderConfig.RETRACTED_SIZE.set(value);
-        BorderConfig.SPEC.save();
+        BorderData.SetRetractionSize(value);
 
         return 1;
     }

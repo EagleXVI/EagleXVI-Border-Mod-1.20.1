@@ -5,13 +5,9 @@ import net.eaglexvi.bordermod.BorderMod;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
-import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.level.storage.ServerLevelData;
-import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.common.Mod;
-import org.jline.utils.Log;
 
-import javax.swing.border.Border;
 import java.awt.*;
 
 @Mod.EventBusSubscriber(modid = BorderMod.MOD_ID)
@@ -38,7 +34,7 @@ public class BorderHandler
 
             BorderData data = BorderData.get(level);
 
-            if (!data.isStopped)
+            if (!BorderData.IsBorderStopped())
             {
                 CheckMessageStatus(level, currentTime, data);
                 CheckBorderStatus(level, currentTime, data);
@@ -53,34 +49,66 @@ public class BorderHandler
     {
         long timeLeft = 0;
 
-        switch(data.lastState)
+        switch(BorderData.GetCurrentState())
         {
-            case "Retracted":
-                timeLeft = ((data.lastActionTime + BorderData.GetExpansionInterval()) - currentTime) / 1000;
+            case "Expanded":
+                timeLeft = (data.nextActionTime - currentTime) / 1000;
 
-                if (timeLeft == 60)
+                if (timeLeft == 10)
+                    BorderSounds.PlayThunder(level);
+
+                else if (timeLeft == 30)
+                    BorderSounds.PlayGuardian(level);
+
+                else if (timeLeft == 60)
                 {
-                    BorderMessages message = new BorderMessages("The border will expand in 1 minute!");
+                    BorderMessages message = new BorderMessages("Tu pajauti stiprų gūsį iš pasaulio krašto...");
                     message.MessageAllPlayers(level);
+
+                    ServerLevelData levelData = (ServerLevelData) level.getLevelData();
+
+                    levelData.setClearWeatherTime(0);
+                    levelData.setRaining(true);
+                    levelData.setRainTime(20 * 90);
+
+                    BorderSounds.PlayThunderLowPitch(level);
                 }
+
                 else if (timeLeft == 600)
                 {
-                    BorderMessages message = new BorderMessages("The border will expand in 10 minutes!");
+                    BorderMessages message = new BorderMessages("Iš gelmių kyla duslus dundėjimas...");
                     message.MessageAllPlayers(level);
                 }
+
                 else if (timeLeft == 3600)
                 {
-                    BorderMessages message = new BorderMessages("The border will expand in 1 hour!");
+                    BorderMessages message = new BorderMessages("Oras aplink tave pamažu tampa sunkus...");
                     message.MessageAllPlayers(level);
                 }
+
+                if (timeLeft >= 0)
+                    LogUtils.getLogger().info("Border will retract in: " + String.valueOf(timeLeft) + " seconds!");
+
                 break;
 
-            case "Expanded":
-                timeLeft = ((data.lastActionTime + BorderData.GetRetractionInterval()) - currentTime) / 1000;
+            case "Retracted":
+                timeLeft = (data.nextActionTime - currentTime) / 1000;
 
-                if (timeLeft == 60)
+                if (timeLeft == 9)
+                    BorderSounds.PlayThunder(level);
+
+                else if (timeLeft == 20)
+                    BorderSounds.PlayThunder(level);
+
+                else if (timeLeft == 30)
+                    BorderSounds.Play30SecondsWarning(level);
+
+                else if (timeLeft == 45)
+                    BorderSounds.PlayThunder(level);
+
+                else if (timeLeft == 60)
                 {
-                    BorderMessages message = new BorderMessages("The border will retract in 1 minute!");
+                    BorderMessages message = new BorderMessages("Vibracijos tampa nepakenčiamos. Pasaulis ruošiasi atsiverti...");
                     message.MessageAllPlayers(level);
 
                     ServerLevelData levelData = (ServerLevelData) level.getLevelData();
@@ -90,50 +118,54 @@ public class BorderHandler
                     levelData.setThundering(true);
                     levelData.setRainTime(20 * 90);
                     levelData.setThunderTime(20 * 60);
+
+                    BorderSounds.PlayThunderLowPitch(level);
                 }
+
                 else if (timeLeft == 600)
                 {
-                    BorderMessages message = new BorderMessages("The border will retract in 10 minutes!");
+                    BorderMessages message = new BorderMessages("Barjeras tarp tavęs ir nebūties darosi vis plonesnis...");
                     message.MessageAllPlayers(level);
                 }
+
                 else if (timeLeft == 3600)
                 {
-                    BorderMessages message = new BorderMessages("The border will retract in 1 hour!");
+                    BorderMessages message = new BorderMessages("Horizonte pasirodė plyšys, kurio neturėtų būti...");
                     message.MessageAllPlayers(level);
                 }
+
+                if (timeLeft >= 0)
+                    LogUtils.getLogger().info("Border will retract in: " + String.valueOf(timeLeft) + " seconds!");
+
                 break;
+
             default:
                 break;
         }
-
-        LogUtils.getLogger().info("Time left before border expands/retracts: " + String.valueOf(timeLeft));
     }
 
     /// Checks if border needs to be updated
     private static void CheckBorderStatus(ServerLevel level, long currentTime, BorderData data)
     {
+        String currentBorderState = BorderData.GetCurrentState();
+
         // Expand border if set time has elapsed
-        if (data.lastState.equals("Retracted") && currentTime - data.lastActionTime >= BorderData.GetExpansionInterval())
+        if (currentBorderState.equals("Retracted") && currentTime - data.nextActionTime >= 0)
             ExpandBorder(level, currentTime, data);
 
         // Retract border if set time has elapsed
-        else if (data.lastState.equals("Expanded") && currentTime - data.lastActionTime >= BorderData.GetRetractionInterval())
+        else if (currentBorderState.equals("Expanded") && currentTime - data.nextActionTime >= 0)
             RetractBorder(level, currentTime, data);
-
-        LogUtils.getLogger().info("Border status: " + String.valueOf(data.lastState));
     }
 
     /// Retracts border
-    private static void RetractBorder(ServerLevel level, long currentTime, BorderData data)
+    public static void RetractBorder(ServerLevel level, long currentTime, BorderData data)
     {
         WorldBorder border = level.getWorldBorder();
-        data.lastState = "Retracted";
-        data.lastActionTime = currentTime;
         border.lerpSizeBetween(BorderData.GetExpansionSize(), BorderData.GetRetractionSize(), BorderData.GetRetractionDuration());
-        data.setDirty();
 
         BorderMessages Message = new BorderMessages(
-                "The border is retracting!",
+                "Pasaulio pakraščiai traukiasi!",
                 TextColor.fromRgb(0xFF5555),
                 true
         );
@@ -141,35 +173,65 @@ public class BorderHandler
         Message.MessageAllPlayers(level);
         BorderSounds.PlayBorderRetract(level);
 
+        BorderData.SetCurrentState("Retracted");
+        data.nextActionTime = currentTime + BorderData.GetExpansionInterval();
+        data.setDirty();
+
     }
 
     /// Expands border
-    private static void ExpandBorder(ServerLevel level, long currentTime, BorderData data)
+    public static void ExpandBorder(ServerLevel level, long currentTime, BorderData data)
     {
         WorldBorder border = level.getWorldBorder();
-
-        data.lastState = "Expanded";
-        data.lastActionTime = currentTime;
         border.lerpSizeBetween(BorderData.GetRetractionSize(), BorderData.GetExpansionSize(), BorderData.GetExpansionDuration());
-        data.setDirty();
 
         BorderMessages Message = new BorderMessages(
-                "The border is expanding!",
+                "Pasaulio pakraščiai plečiasi!",
                 TextColor.fromRgb(0x56A600),
                 true
         );
 
         Message.MessageAllPlayers(level);
         BorderSounds.PlayBorderExpand(level);
+
+        BorderData.SetCurrentState("Expanded");
+        data.nextActionTime = currentTime + BorderData.GetRetractionInterval();
+        data.setDirty();
     }
 
-
-    ///  Restarts Border
-    public static void RestartBorder(ServerLevel level, long currentTime, BorderData data)
+    public static void ReSyncBorder(ServerLevel level, BorderData data, long currentTime)
     {
-        if (data.lastState.equals("Retracted"))
-            BorderHandler.ExpandBorder(level, System.currentTimeMillis(), data);
-        else if (data.lastState.equals("Expanded"))
-            BorderHandler.RetractBorder(level, System.currentTimeMillis(), data);
+        if (data.nextActionTime - currentTime >= 0)
+            return;
+
+        if (BorderData.GetExpansionInterval() <= 0 || BorderData.GetRetractionInterval() <= 0)
+            return;
+
+        WorldBorder border = level.getWorldBorder();
+
+        LogUtils.getLogger().info("Player missed a deadline, recalculating next action!");
+
+        while(data.nextActionTime - currentTime < 0)
+        {
+            if (BorderData.GetCurrentState().equals("Retracted"))
+            {
+                BorderData.SetCurrentState("Expanded");
+                data.nextActionTime += BorderData.GetRetractionInterval();
+                LogUtils.getLogger().info("Border should be expanded");
+            }
+
+            else if (BorderData.GetCurrentState().equals("Expanded"))
+            {
+                BorderData.SetCurrentState("Retracted");
+                data.nextActionTime += BorderData.GetExpansionInterval();
+                LogUtils.getLogger().info("Border should be retracted");
+            }
+        }
+
+        // set size
+        if (BorderData.GetCurrentState().equals("Retracted"))
+            border.setSize(BorderData.GetRetractionSize());
+        else if (BorderData.GetCurrentState().equals("Expanded"))
+            border.setSize(BorderData.GetExpansionSize());
     }
 }

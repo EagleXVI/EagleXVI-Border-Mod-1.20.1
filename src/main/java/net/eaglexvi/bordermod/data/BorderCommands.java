@@ -194,6 +194,7 @@ public class BorderCommands
         BorderData data = BorderData.get(level);
 
         data.nextActionTime = systemTime;
+        data.setDirty();
 
         return 1;
     }

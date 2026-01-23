@@ -21,6 +21,8 @@ public class BorderConfig {
     // Other data
     public static ForgeConfigSpec.BooleanValue BORDER_STOPPED;
     public static ForgeConfigSpec.ConfigValue<String> BORDER_STATE;
+    public static ForgeConfigSpec.ConfigValue<String> DISCORD_BOT_TOKEN;
+    public static ForgeConfigSpec.ConfigValue<String> DISCORD_CHANNEL_ID;
 
     static
     {
@@ -55,6 +57,12 @@ public class BorderConfig {
         BORDER_STATE = BUILDER
                 .comment("Current state of the border")
                 .define("state", "Expanded");
+        DISCORD_BOT_TOKEN = BUILDER
+                .comment("Discord Bot Token")
+                .define("token", "");
+        DISCORD_CHANNEL_ID = BUILDER
+                .comment("Discord Channel ID")
+                .define("id", "");
         BUILDER.pop();
 
         SPEC = BUILDER.build();

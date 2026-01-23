@@ -61,7 +61,6 @@ public class BorderMod {
         LOGGER.info("Sucessfully registered custom commands!");
     }
 
-
     /// On server start
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {

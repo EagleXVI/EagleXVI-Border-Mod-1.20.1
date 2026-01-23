@@ -2,6 +2,7 @@ package net.eaglexvi.bordermod.data;
 
 import com.mojang.logging.LogUtils;
 import net.eaglexvi.bordermod.BorderMod;
+import net.eaglexvi.bordermod.discordAPI.DiscordManager;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
@@ -78,12 +79,25 @@ public class BorderHandler
                 {
                     BorderMessages message = new BorderMessages("Iš gelmių kyla duslus dundėjimas...");
                     message.MessageAllPlayers(level);
+                    BorderSounds.PlayThunderLowPitch(level);
                 }
 
                 else if (timeLeft == 3600)
                 {
                     BorderMessages message = new BorderMessages("Oras aplink tave pamažu tampa sunkus...");
                     message.MessageAllPlayers(level);
+                    DiscordManager.MessageToDiscord("Borderis užsidaro už 1 valandos!");
+                    BorderSounds.PlayThunderLowPitch(level);
+                }
+
+                else if (timeLeft == 14400)
+                {
+                    DiscordManager.MessageToDiscord("Borderis užsidaro už 4 valandų!");
+                }
+
+                else if (timeLeft == 43200)
+                {
+                    DiscordManager.MessageToDiscord("Borderis užsidaro už 12 valandų!");
                 }
 
                 if (timeLeft >= 0)
@@ -126,16 +140,29 @@ public class BorderHandler
                 {
                     BorderMessages message = new BorderMessages("Barjeras tarp tavęs ir nebūties darosi vis plonesnis...");
                     message.MessageAllPlayers(level);
+                    BorderSounds.PlayThunderLowPitch(level);
                 }
 
                 else if (timeLeft == 3600)
                 {
                     BorderMessages message = new BorderMessages("Horizonte pasirodė plyšys, kurio neturėtų būti...");
                     message.MessageAllPlayers(level);
+                    DiscordManager.MessageToDiscord("Borderis atsidaro už 1 valandos!");
+                    BorderSounds.PlayThunderLowPitch(level);
+                }
+
+                else if (timeLeft == 14400)
+                {
+                    DiscordManager.MessageToDiscord("Borderis atsidaro už 4 valandų!");
+                }
+
+                else if (timeLeft == 43200)
+                {
+                    DiscordManager.MessageToDiscord("Borderis atsidaro už 12 valandų!");
                 }
 
                 if (timeLeft >= 0)
-                    LogUtils.getLogger().info("Border will retract in: " + String.valueOf(timeLeft) + " seconds!");
+                    LogUtils.getLogger().info("Border will expand in: " + String.valueOf(timeLeft) + " seconds!");
 
                 break;
 
@@ -171,6 +198,7 @@ public class BorderHandler
         );
 
         Message.MessageAllPlayers(level);
+        DiscordManager.MessageBorderStatusToDiscord("Pasaulio pakraščiai traukiasi!");
         BorderSounds.PlayBorderRetract(level);
 
         BorderData.SetCurrentState("Retracted");
@@ -192,6 +220,7 @@ public class BorderHandler
         );
 
         Message.MessageAllPlayers(level);
+        DiscordManager.MessageBorderStatusToDiscord("Pasaulio pakraščiai plečiasi!");
         BorderSounds.PlayBorderExpand(level);
 
         BorderData.SetCurrentState("Expanded");

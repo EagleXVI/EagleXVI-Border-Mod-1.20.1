@@ -122,4 +122,13 @@ public class BorderData extends SavedData {
         BorderConfig.SPEC.save();
     }
 
+    public static String GetBotToken()
+    {
+        return BorderConfig.DISCORD_BOT_TOKEN.get();
+    }
+
+    public static String GetChannelID()
+    {
+        return BorderConfig.DISCORD_CHANNEL_ID.get();
+    }
 }

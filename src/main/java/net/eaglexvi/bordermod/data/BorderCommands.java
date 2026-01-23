@@ -9,6 +9,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
 import java.time.Instant;
 import java.time.LocalDateTime;

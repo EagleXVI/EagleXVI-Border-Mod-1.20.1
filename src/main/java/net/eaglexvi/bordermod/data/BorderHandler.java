@@ -245,16 +245,18 @@ public class BorderHandler
             if (BorderData.GetCurrentState().equals("Retracted"))
             {
                 BorderData.SetCurrentState("Expanded");
-                data.nextActionTime += BorderData.GetRetractionInterval();
+                data.nextActionTime += BorderData.GetRetractionInterval() * 1000L;
                 LogUtils.getLogger().info("Border should be expanded");
             }
 
             else if (BorderData.GetCurrentState().equals("Expanded"))
             {
                 BorderData.SetCurrentState("Retracted");
-                data.nextActionTime += BorderData.GetExpansionInterval();
+                data.nextActionTime += BorderData.GetExpansionInterval() * 1000L;
                 LogUtils.getLogger().info("Border should be retracted");
             }
+
+            data.setDirty();
         }
 
         // set size

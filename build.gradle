@@ -4,6 +4,7 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 version = mod_version
@@ -126,6 +127,11 @@ repositories {
     maven { url 'https://m2.dv8tion.net/releases' }
 }
 
+configurations {
+    shadowMe
+    implementation.extendsFrom shadowMe
+}
+
 dependencies {
     // Specify the version of Minecraft to use.
     // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
@@ -135,27 +141,78 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     //implementation 'net.dv8tion:JDA:6.3.0'
-    minecraftLibrary('net.dv8tion:JDA:6.3.0') {
+    /*minecraftLibrary('net.dv8tion:JDA:6.3.0') {
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'org.jetbrains', module: 'annotations'
         exclude group: 'net.java.dev.jna', module: 'jna'
     }
 
-    jarJar(group: 'net.dv8tion', name: 'JDA', version: '6.3.0') {
+    jarJar(group: 'net.dv8tion', name: 'JDA', version: '[6.3.0,)') {
         transitive = true
 
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
         exclude group: 'org.jetbrains', module: 'annotations'
         exclude group: 'net.java.dev.jna', module: 'jna'
+    }*/
+
+    shadowMe ('net.dv8tion:JDA:5.0.0-beta.20') {
+        exclude module: 'opus-java' // Excludes voice chat stuff you don't need
+        exclude group: 'org.slf4j'
     }
 }
 
-configurations.all {
+shadowJar {
+    archiveClassifier.set('all-shadow')
+    configurations = [project.configurations.shadowMe]
+
+    def shadowPrefix = "net.eaglexvi.bordermod.shadow"
+
+    // Discord / JDA
+    relocate 'net.dv8tion', "${shadowPrefix}.jda"
+
+    // Networking & IO
+    relocate 'okhttp3', "${shadowPrefix}.okhttp3"
+    relocate 'okio', "${shadowPrefix}.okio"
+
+    // Data & JSON
+    relocate 'com.fasterxml', "${shadowPrefix}.fasterxml"
+    relocate 'org.apache.commons.collections4', "${shadowPrefix}.collections4"
+    relocate 'gnu.trove', "${shadowPrefix}.trove"
+
+    // Logging (Prevents the SLF4J crash)
+    //relocate 'org.slf4j', "${shadowPrefix}.slf4j"
+
+    // Kotlin (Prevents the KotlinForForge crash)
+    relocate 'kotlin', "${shadowPrefix}.kotlin"
+
+    mergeServiceFiles()
+}
+
+assemble.dependsOn shadowJar // Ensures shadowJar runs during build/
+
+reobf {
+    shadowJar {}
+}
+
+afterEvaluate {
+    // This solves the "Task not found" error
+    tasks.named('reobfShadowJar') {
+        dependsOn(shadowJar)
+    }
+
+    // This solves the "Implicit dependency" error from earlier
+    // by ensuring the main build process includes our shadowed jar
+    tasks.named('build') {
+        dependsOn('reobfShadowJar')
+    }
+}
+
+/*configurations.all {
     resolutionStrategy {
         force 'net.java.dev.jna:jna:5.10.0'
         force 'net.java.dev.jna:jna-platform:5.10.0'
     }
-}
+}*/
 
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.

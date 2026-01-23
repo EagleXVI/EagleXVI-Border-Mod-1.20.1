@@ -7,7 +7,9 @@ import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.eaglexvi.bordermod.BorderMod;
 import net.eaglexvi.bordermod.data.BorderData;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.ServerChatEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -18,6 +20,21 @@ import java.awt.*;
 @Mod.EventBusSubscriber(modid = BorderMod.MOD_ID)
 public class DiscordManager {
     public static JDA jda;
+
+    @SubscribeEvent
+    public static void onPlayerDeath(LivingDeathEvent event)
+    {
+        if (event.getEntity() instanceof Player player)
+        {
+            if (!player.level().isClientSide())
+            {
+                String playerName = player.getGameProfile().getName();
+                String deathMessage = event.getSource().getLocalizedDeathMessage(player).getString();
+
+                MessageDied(playerName, deathMessage);
+            }
+        }
+    }
 
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event)
@@ -60,6 +77,31 @@ public class DiscordManager {
 
         MessageLeave(playerName);
     }
+
+    private static void MessageDied(String playerName, String deathMessage)
+    {
+        if (jda == null)
+        {
+            LogUtils.getLogger().info("No JDA detected. Did user add bot token to config?");
+            return;
+        }
+
+        String channelID = BorderData.GetChannelID();
+
+        if (channelID.isEmpty())
+        {
+            LogUtils.getLogger().info("No Channel detected. Did user add channel ID to config?");
+        }
+
+        TextChannel channel = jda.getTextChannelById(channelID);
+        EmbedBuilder joinEmbed = new EmbedBuilder();
+        joinEmbed.setColor(Color.WHITE);
+        joinEmbed.setAuthor("\uD83D\uDC80 " + deathMessage + " \uD83D\uDC80", null, null);
+
+        if (channel != null && channel.canTalk())
+            channel.sendMessageEmbeds(joinEmbed.build()).queue();
+    }
+
 
     private static void MessageJoin(String playerName)
     {

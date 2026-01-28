@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import net.eaglexvi.bordermod.data.BorderCommands;
 import net.eaglexvi.bordermod.data.BorderData;
 import net.eaglexvi.bordermod.data.BorderHandler;
+import net.eaglexvi.bordermod.discordAPI.DiscordManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
@@ -50,6 +51,7 @@ public class BorderMod {
             return;
 
         BorderHandler.Tick(server.overworld());
+        DiscordManager.Tick();
     }
 
     /// Registers Custom Commands

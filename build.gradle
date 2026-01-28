@@ -4,7 +4,6 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 version = mod_version
@@ -16,6 +15,9 @@ base {
 
 // Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+// Enable jarJar for JDA
+jarJar.enable()
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 minecraft {
@@ -86,6 +88,11 @@ minecraft {
         client {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
+
+            // For JDA (Jar in Jar is included in runtime)
+            lazyToken('minecraft_classpath') {
+                configurations.jarJar.collect { it.absolutePath }.join(File.pathSeparator)
+            }
         }
 
         server {
@@ -123,13 +130,8 @@ repositories {
     //     dir 'libs'
     // }
 
+    // For JDA
     mavenCentral()
-    maven { url 'https://m2.dv8tion.net/releases' }
-}
-
-configurations {
-    shadowMe
-    implementation.extendsFrom shadowMe
 }
 
 dependencies {
@@ -140,79 +142,78 @@ dependencies {
     // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    //implementation 'net.dv8tion:JDA:6.3.0'
-    /*minecraftLibrary('net.dv8tion:JDA:6.3.0') {
-        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+    // For JDA
+    implementation("net.dv8tion:JDA:6.3.0") {
+        exclude module: 'opus-java' // required for encoding audio into opus, not needed if audio is already provided in opus encoding
+        exclude module: 'tink' // required for encrypting and decrypting audio
+    }
+
+    // Bundling up JDA
+    jarJar(group: 'net.dv8tion', name: 'JDA', version: '[6.3.0, 6.4.0)') {
+        // This ensures specifically version 6.3.0 is bundled
+        jarJar.pin(it, '6.3.0')
+        exclude module: 'opus-java'
+        exclude module: 'tink'
+
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
+        //exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+    }
+
+    jarJar(group: 'net.sf.trove4j', name: 'trove4j', version: '[3.0.3]') {
+        jarJar.pin(it, '3.0.3')
         exclude group: 'org.jetbrains', module: 'annotations'
-        exclude group: 'net.java.dev.jna', module: 'jna'
     }
 
-    jarJar(group: 'net.dv8tion', name: 'JDA', version: '[6.3.0,)') {
-        transitive = true
-
-        exclude group: 'com.google.code.findbugs', module: 'jsr305'
-        exclude group: 'org.jetbrains', module: 'annotations'
-        exclude group: 'net.java.dev.jna', module: 'jna'
-    }*/
-
-    shadowMe ('net.dv8tion:JDA:5.0.0-beta.20') {
-        exclude module: 'opus-java' // Excludes voice chat stuff you don't need
-        exclude group: 'org.slf4j'
+    jarJar(group: 'com.neovisionaries', name: 'nv-websocket-client', version: '[2.14]') {
+        jarJar.pin(it, '2.14')
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
     }
+
+    jarJar(group: 'com.squareup.okhttp3', name: 'okhttp', version: '[4.12.0]') {
+        jarJar.pin(it, '4.12.0')
+        exclude group: 'org.jetbrains', module: 'annotations' // Fixes the conflict here
+    }
+
+    jarJar(group: 'com.squareup.okio', name: 'okio', version: '[3.9.0]') {
+        jarJar.pin(it, '3.9.0')
+        exclude group: 'org.jetbrains', module: 'annotations' // Just in case
+    }
+
+    jarJar(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '[2.17.0]') {
+        jarJar.pin(it, '2.17.0')
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
+    }
+    jarJar(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '[2.17.0]') {
+        jarJar.pin(it, '2.17.0')
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
+    }
+    jarJar(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '[2.17.0]') {
+        jarJar.pin(it, '2.17.0')
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
+    }
+
+    jarJar(group: 'org.apache.commons', name: 'commons-collections4', version: '[4.4]') {
+        jarJar.pin(it, '4.4')
+        exclude group: 'org.jetbrains', module: 'annotations' // remove duplicate
+    }
+
+
+
+    // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
+    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
+    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}")
+    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}")
+    // runtimeOnly fg.deobf("mezz.jei:jei-${mc_version}-forge:${jei_version}")
+
+    // Example mod dependency using a mod jar from ./libs with a flat dir repository
+    // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
+    // The group id is ignored when searching -- in this case, it is "blank"
+    // implementation fg.deobf("blank:coolmod-${mc_version}:${coolmod_version}")
+
+    // For more info:
+    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
+    // http://www.gradle.org/docs/current/userguide/dependency_management.html
 }
-
-shadowJar {
-    archiveClassifier.set('all-shadow')
-    configurations = [project.configurations.shadowMe]
-
-    def shadowPrefix = "net.eaglexvi.bordermod.shadow"
-
-    // Discord / JDA
-    relocate 'net.dv8tion', "${shadowPrefix}.jda"
-
-    // Networking & IO
-    relocate 'okhttp3', "${shadowPrefix}.okhttp3"
-    relocate 'okio', "${shadowPrefix}.okio"
-
-    // Data & JSON
-    relocate 'com.fasterxml', "${shadowPrefix}.fasterxml"
-    relocate 'org.apache.commons.collections4', "${shadowPrefix}.collections4"
-    relocate 'gnu.trove', "${shadowPrefix}.trove"
-
-    // Logging (Prevents the SLF4J crash)
-    //relocate 'org.slf4j', "${shadowPrefix}.slf4j"
-
-    // Kotlin (Prevents the KotlinForForge crash)
-    relocate 'kotlin', "${shadowPrefix}.kotlin"
-
-    mergeServiceFiles()
-}
-
-assemble.dependsOn shadowJar // Ensures shadowJar runs during build/
-
-reobf {
-    shadowJar {}
-}
-
-afterEvaluate {
-    // This solves the "Task not found" error
-    tasks.named('reobfShadowJar') {
-        dependsOn(shadowJar)
-    }
-
-    // This solves the "Implicit dependency" error from earlier
-    // by ensuring the main build process includes our shadowed jar
-    tasks.named('build') {
-        dependsOn('reobfShadowJar')
-    }
-}
-
-/*configurations.all {
-    resolutionStrategy {
-        force 'net.java.dev.jna:jna:5.10.0'
-        force 'net.java.dev.jna:jna-platform:5.10.0'
-    }
-}*/
 
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.

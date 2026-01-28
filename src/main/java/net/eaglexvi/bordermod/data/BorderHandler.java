@@ -1,6 +1,5 @@
 package net.eaglexvi.bordermod.data;
 
-import com.mojang.logging.LogUtils;
 import net.eaglexvi.bordermod.BorderMod;
 import net.eaglexvi.bordermod.discordAPI.DiscordManager;
 import net.minecraft.network.chat.TextColor;
@@ -8,8 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraftforge.fml.common.Mod;
-
-import java.awt.*;
 
 @Mod.EventBusSubscriber(modid = BorderMod.MOD_ID)
 public class BorderHandler
@@ -100,9 +97,6 @@ public class BorderHandler
                     DiscordManager.MessageToDiscord("Borderis užsidaro už 12 valandų!");
                 }
 
-                if (timeLeft >= 0)
-                    LogUtils.getLogger().info("Border will retract in: " + String.valueOf(timeLeft) + " seconds!");
-
                 break;
 
             case "Retracted":
@@ -160,9 +154,6 @@ public class BorderHandler
                 {
                     DiscordManager.MessageToDiscord("Borderis atsidaro už 12 valandų!");
                 }
-
-                if (timeLeft >= 0)
-                    LogUtils.getLogger().info("Border will expand in: " + String.valueOf(timeLeft) + " seconds!");
 
                 break;
 
@@ -238,22 +229,18 @@ public class BorderHandler
 
         WorldBorder border = level.getWorldBorder();
 
-        LogUtils.getLogger().info("Player missed a deadline, recalculating next action!");
-
         while(data.nextActionTime - currentTime < 0)
         {
             if (BorderData.GetCurrentState().equals("Retracted"))
             {
                 BorderData.SetCurrentState("Expanded");
                 data.nextActionTime += BorderData.GetRetractionInterval() * 1000L;
-                LogUtils.getLogger().info("Border should be expanded");
             }
 
             else if (BorderData.GetCurrentState().equals("Expanded"))
             {
                 BorderData.SetCurrentState("Retracted");
                 data.nextActionTime += BorderData.GetExpansionInterval() * 1000L;
-                LogUtils.getLogger().info("Border should be retracted");
             }
 
             data.setDirty();

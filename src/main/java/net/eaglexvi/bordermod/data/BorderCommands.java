@@ -9,7 +9,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -23,10 +22,9 @@ public class BorderCommands
     public static void Register(CommandDispatcher<CommandSourceStack> dispatcher)
     {
         dispatcher.register(Commands.literal("customBorder")
-                .requires(source -> source.hasPermission(2))
-
                 // ./customBorder expansionIntervalSeconds
                 .then(Commands.literal("expansionIntervalSeconds")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("seconds", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long expansionInterval = LongArgumentType.getLong(context, "seconds");
@@ -37,6 +35,7 @@ public class BorderCommands
 
                 // ./customBorder expansionDurationSeconds
                 .then(Commands.literal("expansionDurationSeconds")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("seconds", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long expansionDuration = LongArgumentType.getLong(context, "seconds");
@@ -47,6 +46,7 @@ public class BorderCommands
 
                 // ./customBorder expandedSize
                 .then(Commands.literal("expandedSize")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("size", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long expansionSize = LongArgumentType.getLong(context, "size");
@@ -57,6 +57,7 @@ public class BorderCommands
 
                 // ./customBorder retractionIntervalSeconds
                 .then(Commands.literal("retractionIntervalSeconds")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("seconds", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long retractionInterval = LongArgumentType.getLong(context, "seconds");
@@ -67,6 +68,7 @@ public class BorderCommands
 
                 // ./customBorder retractionDurationSeconds
                 .then(Commands.literal("retractionDurationSeconds")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("seconds", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long retractionDuration = LongArgumentType.getLong(context, "seconds");
@@ -77,6 +79,7 @@ public class BorderCommands
 
                 // ./customBorder retractedSize
                 .then(Commands.literal("retractedSize")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("size", LongArgumentType.longArg(1))
                             .executes(context -> {
                                 long retractedSize = LongArgumentType.getLong(context, "size");
@@ -87,6 +90,7 @@ public class BorderCommands
 
                 // ./customBorder state
                 .then(Commands.literal("state")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("expanded")
                                 .executes(context -> {
                                     return ChangeState(context.getSource(), true);
@@ -94,6 +98,7 @@ public class BorderCommands
                         )
 
                         .then(Commands.literal("retracted")
+                                .requires(source -> source.hasPermission(2))
                                 .executes(context -> {
                                     return ChangeState(context.getSource(), false);
                                 })
@@ -102,6 +107,7 @@ public class BorderCommands
 
                 // ./customBorder stop
                 .then(Commands.literal("stop")
+                        .requires(source -> source.hasPermission(2))
                     .executes(context -> {
                         return StopBorder(context.getSource());
                      })
@@ -110,6 +116,7 @@ public class BorderCommands
 
                 // ./customBorder start
                 .then(Commands.literal("start")
+                        .requires(source -> source.hasPermission(2))
                         .executes(context -> {
                             return StartBorder(context.getSource());
                         })
@@ -118,6 +125,7 @@ public class BorderCommands
 
                 // ./customBorder setNewActionDate
                 .then(Commands.literal("setNewActionDate")
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("year", IntegerArgumentType.integer(1))
                                 .then(Commands.argument("month", IntegerArgumentType.integer(1))
                                         .then(Commands.argument("day", IntegerArgumentType.integer(1))
@@ -150,12 +158,43 @@ public class BorderCommands
                 )
 
                 .then(Commands.literal("skipState")
+                        .requires(source -> source.hasPermission(2))
                         .executes(context -> {
                             return SkipState(context.getSource());
                         })
                 )
-        );
 
+                .then(Commands.literal("timeLeft")
+                        .executes(context -> {
+                            return TimeLeft(context.getSource());
+                        })
+                )
+        );
+    }
+
+    private static int TimeLeft(CommandSourceStack source)
+    {
+        BorderData data = BorderData.get(source.getLevel());
+
+        long nextTime = data.nextActionTime;
+        long currentTime = System.currentTimeMillis();
+
+        long timeLeft = (nextTime - currentTime) / 1000L;
+        long hours = timeLeft / 3600;
+        long minutes = (timeLeft % 3600) / 60;
+        long seconds = timeLeft % 60;
+
+        String timeFormatted;
+        if (hours > 0)
+            timeFormatted = String.format("%dh %02dm %02ds", hours, minutes, seconds);
+        else if (minutes > 0)
+            timeFormatted = String.format("%02dm %02ds", minutes, seconds);
+        else
+            timeFormatted = String.format("%02ds", seconds);
+
+        source.sendSuccess(() -> Component.literal("§eLiko: §6" + timeFormatted), false);
+
+        return 1;
     }
 
     private static int SkipState(CommandSourceStack source)
@@ -180,7 +219,7 @@ public class BorderCommands
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-        source.sendSuccess(() -> Component.literal("Current time is: " + dateTime.format(formatter)), true);
+        source.sendSuccess(() -> Component.literal("Current time is: " + dateTime.format(formatter)), false);
 
         return 1;
     }
